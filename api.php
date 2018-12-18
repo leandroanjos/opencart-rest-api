@@ -1606,6 +1606,13 @@ class PHP_CRUD_API {
         return $rows;
     }
 
+    protected function truncateTable($tablename) {
+        $sql = 'DELETE FROM '.$tablename;    
+        $result = $this->db->query($sql);
+        if (!$result) return null;
+        return $this->db->affectedRows($result);
+    }
+
     protected function incrementObject($key,$input,$filters,$tables,$fields) {
         if (!$input) return null;
         $input = (array)$input;
@@ -2102,6 +2109,22 @@ class PHP_CRUD_API {
 
     protected function deleteCommand($parameters) {
         extract($parameters);
+        if ($key[0] === null && count($tables) == 1) {
+			// http://localhost/opencart/api.php/oc_category_to_store?filter=id,eq,all
+			$tablename = $tables[0];
+			
+			if ($filters[$tablename] != null) {
+				$criterion = $filters[$tablename]['and'];
+				if ($criterion !== null && $criterion[0] !== null) {
+					$criterionField = $criterion[0][1];
+					$criterionValue = $criterion[0][2];
+					if ($criterionField === "id" && $criterionValue === 'all'){
+						return $this->truncateTable($tablename);
+					}
+				}
+			}
+		}        
+
         if (count($key[0])>1) return $this->deleteObjects($key,$filters,$tables);
         return $this->deleteObject($key,$filters,$tables);
     }
@@ -2684,6 +2707,7 @@ class PHP_CRUD_API {
             //$this->swagger($this->settings);
         } else {
             $parameters = $this->getParameters($this->settings);
+            echo $parameters;
             switch($parameters['action']){
                 case 'list': $output = $this->listCommand($parameters); break;
                 case 'read': $output = $this->readCommand($parameters); break;
